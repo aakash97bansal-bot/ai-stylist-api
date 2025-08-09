@@ -1,11 +1,21 @@
 // Vercel Serverless Function: /api/recommend
 export default async function handler(req, res) {
-  // CORS (let your site call this)
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      ok: true,
+      message: 'AI Stylist API is running. POST JSON to this endpoint to get outfit suggestions.'
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   const {
     age, gender, genderConfidence,
@@ -13,24 +23,23 @@ export default async function handler(req, res) {
   } = req.body || {};
 
   if (!season || !skinHex) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return res.status(400).json({ error: 'Missing required fields: season, skinHex' });
   }
 
   try {
     const sys = `You are a fashion stylist. Return concise, practical head-to-toe outfit suggestions as strict JSON.
 Consider age, gender, skin tone bucket (light/medium/deep), undertone (warm/cool/neutral), season.
 No brand names. Fabrics must fit the season. Output keys:
-- headwear, top, midlayer, bottoms, footwear, accessories (strings)
+- headwear, top, midlayer, bottoms, footwear, accessories
 - palette: { "primary": hex, "accent": hex, "neutral": hex }
-- rationale (short string)`;
+- rationale`;
 
     const user = JSON.stringify({ age, gender, genderConfidence, skinHex, skinToneBucket, undertone, season });
 
-    // Call OpenAI
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, // set in Vercel
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
